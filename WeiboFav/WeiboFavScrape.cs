@@ -90,7 +90,6 @@ namespace WeiboFav
                     foreach (var weiboInfo in weiboInfoList)
                         WeiboReceived?.Invoke(this, new WeiboEventArgs {WeiboInfo = weiboInfo});
 
-
                     await Task.Delay(TimeSpan.FromMinutes(1));
                 }
 
@@ -154,7 +153,7 @@ namespace WeiboFav
                 }
                 catch (Exception e)
                 {
-                    Log.Logger.Error(e, "Cannot download Img");
+                    Log.Logger.Error(e, $"Cannot download Img: {url}");
                     return null;
                 }
 

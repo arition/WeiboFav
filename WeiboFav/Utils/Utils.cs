@@ -1,4 +1,6 @@
-﻿using OpenQA.Selenium;
+﻿using System.IO;
+using OpenQA.Selenium;
+using SixLabors.ImageSharp;
 
 namespace WeiboFav.Utils
 {
@@ -20,6 +22,18 @@ namespace WeiboFav.Utils
             {
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Identify a picture and reset the stream head
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <returns></returns>
+        public static IImageInfo IdentifyX(Stream stream)
+        {
+            var result = Image.Identify(stream);
+            stream.Seek(0, SeekOrigin.Begin);
+            return result;
         }
     }
 }

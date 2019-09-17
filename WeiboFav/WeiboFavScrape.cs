@@ -83,8 +83,12 @@ namespace WeiboFav
                         await db.SaveChangesAsync();
                     }
 
-                    foreach (var weiboInfo in weiboInfoList)
-                        WeiboReceived?.Invoke(this, new WeiboEventArgs {WeiboInfo = weiboInfo});
+                    if (weiboInfoList.Count > 0)
+                    {
+                        Log.Logger.Information($"Find {weiboInfoList.Count} new weibos");
+                        foreach (var weiboInfo in weiboInfoList)
+                            WeiboReceived?.Invoke(this, new WeiboEventArgs {WeiboInfo = weiboInfo});
+                    }
 
                     await Task.Delay(TimeSpan.FromMinutes(1));
                 }
@@ -111,9 +115,6 @@ namespace WeiboFav
             password.SendKeys(Program.Config["Weibo:Password"]);
             submitBtn.Click();
 
-            File.Delete("verify.png");
-            (webDriver as ITakesScreenshot).GetScreenshot().SaveAsFile("verify.png");
-
             while (true)
             {
                 try
@@ -125,7 +126,7 @@ namespace WeiboFav
                 catch (TimeoutException)
                 {
                     File.Delete("verify.png");
-                    (webDriver as ITakesScreenshot).GetScreenshot().SaveAsFile("verify.png");
+                    ((ITakesScreenshot) webDriver).GetScreenshot().SaveAsFile("verify.png");
                     Console.WriteLine("Please check verify.png for verify code");
                     Console.Write("Verify Code: ");
                     var code = Console.ReadLine();

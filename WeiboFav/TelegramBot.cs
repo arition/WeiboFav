@@ -22,7 +22,7 @@ namespace WeiboFav
             var retryTime = 0;
             while (true)
             {
-                if (retryTime > 3) break;
+                if (retryTime > 5) break;
                 try
                 {
                     if (string.IsNullOrEmpty(weiboInfo.Url)) return;
@@ -52,7 +52,7 @@ namespace WeiboFav
                 catch (Exception e)
                 {
                     Log.Logger.Fatal(e, "Failed to send message");
-                    await Task.Delay(TimeSpan.FromSeconds(5));
+                    await Task.Delay(TimeSpan.FromSeconds(10));
                     retryTime++;
                 }
             }

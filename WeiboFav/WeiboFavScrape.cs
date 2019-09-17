@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -34,6 +35,7 @@ namespace WeiboFav
 
             using (var webDriver = new ChromeDriver(browserDriverPath, options))
             {
+                webDriver.Manage().Window.Size = new Size(1920, 1080);
                 var url = "http://weibo.com";
                 webDriver.Navigate().GoToUrl(url);
 
@@ -44,6 +46,8 @@ namespace WeiboFav
                 }
                 catch (TimeoutException)
                 {
+                    File.Delete("verify.png");
+                    (webDriver as ITakesScreenshot).GetScreenshot().SaveAsFile("verify.png");
                     await Login(webDriver);
                 }
 
@@ -92,7 +96,7 @@ namespace WeiboFav
 
         private async Task Login(IWebDriver webDriver)
         {
-            var wait = new AsyncWait(TimeSpan.FromMinutes(1));
+            var wait = new AsyncWait(TimeSpan.FromSeconds(30));
             await wait.UntilAsync(webDriver, ExpectedConditions.ElementIsVisible(By.Name("username")));
 
             var username = webDriver.FindElement(By.Name("username"));
@@ -107,7 +111,28 @@ namespace WeiboFav
             password.SendKeys(Program.Config["Weibo:Password"]);
             submitBtn.Click();
 
-            await wait.UntilAsync(webDriver, ExpectedConditions.ElementIsVisible(By.CssSelector(".WB_left_nav")));
+            File.Delete("verify.png");
+            (webDriver as ITakesScreenshot).GetScreenshot().SaveAsFile("verify.png");
+
+            while (true)
+            {
+                try
+                {
+                    await wait.UntilAsync(webDriver,
+                        ExpectedConditions.ElementIsVisible(By.CssSelector(".WB_left_nav")));
+                    break;
+                }
+                catch (TimeoutException)
+                {
+                    File.Delete("verify.png");
+                    (webDriver as ITakesScreenshot).GetScreenshot().SaveAsFile("verify.png");
+                    Console.WriteLine("Please check verify.png for verify code");
+                    Console.Write("Verify Code: ");
+                    var code = Console.ReadLine();
+                    webDriver.FindElement(By.CssSelector(".verify input")).SendKeys(code);
+                    submitBtn.Click();
+                }
+            }
         }
 
         private async Task<string> DownloadImg(string url)

@@ -57,6 +57,7 @@ namespace WeiboFav
                 {
                     url = "http://weibo.com/fav";
                     webDriver.Navigate().GoToUrl(url);
+                    Log.Logger.Information("Checking fav Weibo...");
 
                     var weibos = webDriver.FindElements(By.CssSelector(".WB_feed_like"));
                     var weiboInfos = (await Task.WhenAll(weibos.Select(async t => new WeiboInfo
@@ -85,12 +86,10 @@ namespace WeiboFav
                         await db.SaveChangesAsync();
                     }
 
-                    if (weiboInfoList.Count > 0)
-                    {
-                        Log.Logger.Information($"Find {weiboInfoList.Count} new weibos");
-                        foreach (var weiboInfo in weiboInfoList)
-                            WeiboReceived?.Invoke(this, new WeiboEventArgs {WeiboInfo = weiboInfo});
-                    }
+                    Log.Logger.Information($"Find {weiboInfoList.Count} new weibos");
+                    foreach (var weiboInfo in weiboInfoList)
+                        WeiboReceived?.Invoke(this, new WeiboEventArgs {WeiboInfo = weiboInfo});
+
 
                     await Task.Delay(TimeSpan.FromMinutes(1));
                 }
@@ -118,7 +117,6 @@ namespace WeiboFav
             submitBtn.Click();
 
             while (true)
-            {
                 try
                 {
                     await wait.UntilAsync(webDriver,
@@ -135,7 +133,6 @@ namespace WeiboFav
                     webDriver.FindElement(By.CssSelector(".verify input")).SendKeys(code);
                     submitBtn.Click();
                 }
-            }
         }
 
         private async Task<string> DownloadImg(string url)

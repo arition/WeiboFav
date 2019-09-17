@@ -36,6 +36,8 @@ namespace WeiboFav
             using (var webDriver = new ChromeDriver(browserDriverPath, options))
             {
                 webDriver.Manage().Window.Size = new Size(1920, 1080);
+                Log.Logger.Information("WebDriver started");
+
                 var url = "http://weibo.com";
                 webDriver.Navigate().GoToUrl(url);
 
@@ -43,11 +45,11 @@ namespace WeiboFav
                 try
                 {
                     await waitJump.UntilAsync(webDriver, ExpectedConditions.UrlMatches(@"weibo.com/.+/home"));
+                    Log.Logger.Information("User Login Success");
                 }
                 catch (TimeoutException)
                 {
-                    File.Delete("verify.png");
-                    (webDriver as ITakesScreenshot).GetScreenshot().SaveAsFile("verify.png");
+                    Log.Logger.Information("Try Login...");
                     await Login(webDriver);
                 }
 

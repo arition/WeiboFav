@@ -21,6 +21,9 @@ namespace WeiboFav
         public async Task SendWeibo(WeiboInfo weiboInfo)
         {
             var retryTime = 0;
+            var sizeLimit = 1000L * 1000 * 10; // 10MB limit
+            var widthLimit = 10000;
+            var heightLimit = 10000;
             while (true)
             {
                 if (retryTime > 5) break;
@@ -45,9 +48,8 @@ namespace WeiboFav
 
                     if (weiboInfo.ImgUrls.Count > 1)
                     {
-                        var limit = 1000L * 1000 * 10; // 10MB limit
                         var photoInput = files.TakeWhile(t =>
-                                t.Length < limit && t.Image.Height < 10000 && t.Image.Width < 10000)
+                                t.Length < sizeLimit && t.Image.Height < heightLimit && t.Image.Width < widthLimit)
                             .Select(t => new InputMediaPhoto(new InputMedia(t.Stream, t.Name))).ToList();
                         var msgs = await BotClient.SendMediaGroupAsync(photoInput,
                             new ChatId(long.Parse(Program.Config["Telegram:ChatId"])));
@@ -56,8 +58,17 @@ namespace WeiboFav
                     }
                     else if (weiboInfo.ImgUrls.Count == 1)
                     {
-                        await BotClient.SendPhotoAsync(new ChatId(long.Parse(Program.Config["Telegram:ChatId"])),
-                            new InputMedia(weiboInfo.ImgUrls[0].ImgUrl), weiboInfo.Url);
+                        if (files[0].Length < sizeLimit &&
+                            files[0].Image.Height < heightLimit &&
+                            files[0].Image.Width < widthLimit)
+                        {
+                            await BotClient.SendPhotoAsync(new ChatId(long.Parse(Program.Config["Telegram:ChatId"])),
+                                new InputMedia(files[0].Stream, files[0].Name), weiboInfo.Url);
+                        }
+                        else
+                        {
+                            Log.Warning($"Single img cannot be sent, weiboId {weiboInfo.Id}");
+                        }
                     }
                     else
                     {

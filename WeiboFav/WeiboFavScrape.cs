@@ -55,46 +55,54 @@ namespace WeiboFav
 
                 while (true)
                 {
-                    url = "http://weibo.com/fav";
-                    webDriver.Navigate().GoToUrl(url);
-                    Log.Logger.Information("Checking fav Weibo...");
-
-                    await waitJump.UntilAsync(webDriver,
-                        ExpectedConditions.ElementIsVisible(By.CssSelector(".WB_feed_like")));
-                    var weibos = webDriver.FindElements(By.CssSelector(".WB_feed_like"));
-                    var weiboInfos = (await Task.WhenAll(weibos.Select(async t => new WeiboInfo
+                    try
                     {
-                        Id = t.GetAttribute("mid"),
-                        RawHtml = t.GetAttribute("innerHTML"),
-                        Url = t.FindElementX(By.CssSelector(".WB_func li:nth-child(2) a"))?.GetAttribute("href") ?? "",
-                        ImgUrls = (await Task.WhenAll(
-                            ImgUrlRegex.Matches(
-                                    t.FindElementX(By.CssSelector(".WB_media_a[action-data]"))
-                                        ?.GetAttribute("action-data") ?? "").Select(d => d.Value).Distinct()
-                                .Select(async d => new Img
-                                {
-                                    ImgUrl = $"http://wx1.sinaimg.cn/large/{d}",
-                                    ImgPath = await DownloadImg($"http://wx1.sinaimg.cn/large/{d}")
-                                }))).ToList()
-                    }))).AsEnumerable();
+                        url = "http://weibo.com/fav";
+                        webDriver.Navigate().GoToUrl(url);
+                        Log.Logger.Information("Checking fav Weibo...");
 
-                    IList<WeiboInfo> weiboInfoList;
+                        await waitJump.UntilAsync(webDriver,
+                            ExpectedConditions.ElementIsVisible(By.CssSelector(".WB_feed_like")));
+                        var weibos = webDriver.FindElements(By.CssSelector(".WB_feed_like"));
+                        var weiboInfos = (await Task.WhenAll(weibos.Select(async t => new WeiboInfo
+                        {
+                            Id = t.GetAttribute("mid"),
+                            RawHtml = t.GetAttribute("innerHTML"),
+                            Url = t.FindElementX(By.CssSelector(".WB_func li:nth-child(2) a"))?.GetAttribute("href") ??
+                                  "",
+                            ImgUrls = (await Task.WhenAll(
+                                ImgUrlRegex.Matches(
+                                        t.FindElementX(By.CssSelector(".WB_media_a[action-data]"))
+                                            ?.GetAttribute("action-data") ?? "").Select(d => d.Value).Distinct()
+                                    .Select(async d => new Img
+                                    {
+                                        ImgUrl = $"http://wx1.sinaimg.cn/large/{d}",
+                                        ImgPath = await DownloadImg($"http://wx1.sinaimg.cn/large/{d}")
+                                    }))).ToList()
+                        }))).AsEnumerable();
 
-                    using (var db = new Database())
-                    {
-                        // ReSharper disable once AccessToDisposedClosure
-                        weiboInfoList = weiboInfos.Where(t => db.WeiboInfo.All(d => t.Id != d.Id)).ToList();
-                        await db.WeiboInfo.AddRangeAsync(weiboInfoList);
-                        await db.SaveChangesAsync();
+                        IList<WeiboInfo> weiboInfoList;
+
+                        using (var db = new Database())
+                        {
+                            // ReSharper disable once AccessToDisposedClosure
+                            weiboInfoList = weiboInfos.Where(t => db.WeiboInfo.All(d => t.Id != d.Id)).ToList();
+                            await db.WeiboInfo.AddRangeAsync(weiboInfoList);
+                            await db.SaveChangesAsync();
+                        }
+
+                        File.Delete("screenshot.png");
+                        ((ITakesScreenshot) webDriver).GetScreenshot().SaveAsFile("screenshot.png");
+                        Log.Logger.Information($"Find {weiboInfoList.Count} new weibos");
+                        if (weiboInfoList.Count > 0)
+                            Log.Logger.Information("Passing weibos to telegram bot...");
+                        foreach (var weiboInfo in weiboInfoList)
+                            WeiboReceived?.Invoke(this, new WeiboEventArgs {WeiboInfo = weiboInfo});
                     }
-
-                    File.Delete("screenshot.png");
-                    ((ITakesScreenshot) webDriver).GetScreenshot().SaveAsFile("screenshot.png");
-                    Log.Logger.Information($"Find {weiboInfoList.Count} new weibos");
-                    if (weiboInfoList.Count > 0)
-                        Log.Logger.Information("Passing weibos to telegram bot...");
-                    foreach (var weiboInfo in weiboInfoList)
-                        WeiboReceived?.Invoke(this, new WeiboEventArgs {WeiboInfo = weiboInfo});
+                    catch (Exception e)
+                    {
+                        Log.Fatal(e, "Access Weibo failed");
+                    }
 
                     await Task.Delay(TimeSpan.FromMinutes(1));
                 }

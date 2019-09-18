@@ -29,7 +29,7 @@ namespace WeiboFav
                 if (retryTime > 5) break;
 
                 var files = weiboInfo.ImgUrls
-                    .Where(t => string.IsNullOrEmpty(t.ImgPath))
+                    .Where(t => !string.IsNullOrEmpty(t.ImgPath))
                     .Select(t => new FileInfo(t.ImgPath))
                     .Select(t => new
                     {

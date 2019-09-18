@@ -59,6 +59,8 @@ namespace WeiboFav
                     webDriver.Navigate().GoToUrl(url);
                     Log.Logger.Information("Checking fav Weibo...");
 
+                    await waitJump.UntilAsync(webDriver,
+                        ExpectedConditions.ElementIsVisible(By.CssSelector(".WB_feed_like")));
                     var weibos = webDriver.FindElements(By.CssSelector(".WB_feed_like"));
                     var weiboInfos = (await Task.WhenAll(weibos.Select(async t => new WeiboInfo
                     {

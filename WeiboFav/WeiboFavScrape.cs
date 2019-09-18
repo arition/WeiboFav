@@ -86,6 +86,8 @@ namespace WeiboFav
                         await db.SaveChangesAsync();
                     }
 
+                    File.Delete("screenshot.png");
+                    ((ITakesScreenshot)webDriver).GetScreenshot().SaveAsFile("screenshot.png");
                     Log.Logger.Information($"Find {weiboInfoList.Count} new weibos");
                     foreach (var weiboInfo in weiboInfoList)
                         WeiboReceived?.Invoke(this, new WeiboEventArgs {WeiboInfo = weiboInfo});

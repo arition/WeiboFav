@@ -48,7 +48,7 @@ namespace WeiboFav
                 {
                     if (string.IsNullOrEmpty(weiboInfo.Url)) return;
 
-                    if (weiboInfo.ImgUrls.Count > 1)
+                    if (files.Count > 1)
                     {
                         var photoInput = files.TakeWhile(t =>
                                 t.Length < sizeLimit && t.Image.Height < heightLimit && t.Image.Width < widthLimit)
@@ -58,7 +58,7 @@ namespace WeiboFav
                         await BotClient.EditMessageCaptionAsync(msgs[0].Chat.Id, msgs[0].MessageId,
                             photoInput.Count == files.Count ? weiboInfo.Url : $"More: {weiboInfo.Url}");
                     }
-                    else if (weiboInfo.ImgUrls.Count == 1)
+                    else if (files.Count == 1)
                     {
                         if (files[0].Length < sizeLimit &&
                             files[0].Image.Height < heightLimit &&

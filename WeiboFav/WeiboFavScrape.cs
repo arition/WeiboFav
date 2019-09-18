@@ -87,8 +87,10 @@ namespace WeiboFav
                     }
 
                     File.Delete("screenshot.png");
-                    ((ITakesScreenshot)webDriver).GetScreenshot().SaveAsFile("screenshot.png");
+                    ((ITakesScreenshot) webDriver).GetScreenshot().SaveAsFile("screenshot.png");
                     Log.Logger.Information($"Find {weiboInfoList.Count} new weibos");
+                    if (weiboInfoList.Count > 0)
+                        Log.Logger.Information("Passing weibos to telegram bot...");
                     foreach (var weiboInfo in weiboInfoList)
                         WeiboReceived?.Invoke(this, new WeiboEventArgs {WeiboInfo = weiboInfo});
 

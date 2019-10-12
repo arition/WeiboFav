@@ -3,6 +3,8 @@ using System.IO;
 using System.Threading;
 using Microsoft.Extensions.Configuration;
 using Serilog;
+using SixLabors.ImageSharp;
+using SixLabors.Memory;
 
 namespace WeiboFav
 {
@@ -30,6 +32,8 @@ namespace WeiboFav
                 .WriteTo.Console()
                 .WriteTo.RollingFile("logs/log-{Date}.txt", fileSizeLimitBytes: 1024 * 1024, retainedFileCountLimit: 5)
                 .CreateLogger();
+
+            Configuration.Default.MemoryAllocator = new SimpleGcMemoryAllocator();
 
             try
             {

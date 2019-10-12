@@ -21,9 +21,9 @@ namespace WeiboFav
         public async Task SendWeibo(WeiboInfo weiboInfo)
         {
             var retryTime = 0;
-            var sizeLimit = 1000L * 1000 * 10; // 10MB limit
-            var widthLimit = 10000;
-            var heightLimit = 10000;
+            //var sizeLimit = 1000L * 1000 * 10; // 10MB limit
+            //var widthLimit = 10000;
+            //var heightLimit = 10000;
             while (true)
             {
                 if (retryTime > 5) break;
@@ -34,15 +34,19 @@ namespace WeiboFav
                     .Select(t => new
                     {
                         FileInfo = t,
-                        Stream = t.OpenRead()
+                        Stream = Utils.Utils.ResaveImage(t.OpenRead())
                     })
                     .Select(t => new
                     {
                         t.FileInfo.Name,
                         t.FileInfo.Length,
-                        t.Stream,
-                        Image = Utils.Utils.IdentifyX(t.Stream)
-                    }).OrderBy(t => t.Length).ToList();
+                        Image = Utils.Utils.IdentifyX(t.Stream),
+                        t.Stream
+                    }).OrderBy(t => t.Length)
+                    /*.TakeWhile(t => t.Length < sizeLimit &&
+                                    t.Image.Height < heightLimit &&
+                                    t.Image.Width < widthLimit)*/
+                    .ToList();
 
                 try
                 {
@@ -50,27 +54,19 @@ namespace WeiboFav
 
                     if (files.Count > 1)
                     {
-                        var photoInput = files.TakeWhile(t =>
-                                t.Length < sizeLimit && t.Image.Height < heightLimit && t.Image.Width < widthLimit)
-                            .Select(t => new InputMediaPhoto(new InputMedia(t.Stream, t.Name))).ToList();
-                        var msgs = await BotClient.SendMediaGroupAsync(photoInput,
+                        /*var totalSize = 0L;
+                        (totalSize+=t.Length) < sizeLimit && */
+                        var photoInput = files.Select(t => new InputMediaPhoto(new InputMedia(t.Stream, t.Name)))
+                            .ToList();
+                        photoInput[0].Caption =
+                            photoInput.Count == files.Count ? weiboInfo.Url : $"More: {weiboInfo.Url}";
+                        await BotClient.SendMediaGroupAsync(photoInput,
                             new ChatId(long.Parse(Program.Config["Telegram:ChatId"])));
-                        await BotClient.EditMessageCaptionAsync(msgs[0].Chat.Id, msgs[0].MessageId,
-                            photoInput.Count == files.Count ? weiboInfo.Url : $"More: {weiboInfo.Url}");
                     }
                     else if (files.Count == 1)
                     {
-                        if (files[0].Length < sizeLimit &&
-                            files[0].Image.Height < heightLimit &&
-                            files[0].Image.Width < widthLimit)
-                        {
-                            await BotClient.SendPhotoAsync(new ChatId(long.Parse(Program.Config["Telegram:ChatId"])),
-                                new InputMedia(files[0].Stream, files[0].Name), weiboInfo.Url);
-                        }
-                        else
-                        {
-                            Log.Warning($"Single img cannot be sent, weiboId {weiboInfo.Id}");
-                        }
+                        await BotClient.SendPhotoAsync(new ChatId(long.Parse(Program.Config["Telegram:ChatId"])),
+                            new InputMedia(files[0].Stream, files[0].Name), weiboInfo.Url);
                     }
                     else
                     {

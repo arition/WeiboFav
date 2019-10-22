@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Serilog;
 using Telegram.Bot;
 using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
 using WeiboFav.Model;
 
 namespace WeiboFav
@@ -58,6 +59,7 @@ namespace WeiboFav
                 try
                 {
                     if (string.IsNullOrEmpty(weiboInfo.Url)) return;
+                    await BotClient.SendChatActionAsync(Program.Config["Telegram:ChatId"], ChatAction.UploadPhoto);
 
                     if (files.Count > 1)
                     {
@@ -103,6 +105,7 @@ namespace WeiboFav
 
         public async Task SendVerifyCode(Stream img)
         {
+            await BotClient.SendChatActionAsync(Program.Config["Telegram:AdminChatId"], ChatAction.UploadPhoto);
             await BotClient.SendPhotoAsync(Program.Config["Telegram:AdminChatId"], new InputMedia(img, "verify.png"));
         }
     }

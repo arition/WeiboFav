@@ -21,8 +21,10 @@ namespace WeiboFav
         private HttpClient HttpClient { get; } = new HttpClient();
         private Regex ImgUrlRegex { get; } = new Regex(@"(?<=\d%2F).+?\.(jpg|gif|png|webp)", RegexOptions.Compiled);
         private Regex FileNameRegex { get; } = new Regex(@"[^\/]+(?=\/$|$)", RegexOptions.Compiled);
+        public string Code { private get; set; }
 
         public event EventHandler<WeiboEventArgs> WeiboReceived;
+        public event EventHandler<VerifyEventArgs> VerifyRequested;
 
         public async void StartScrape()
         {
@@ -138,12 +140,14 @@ namespace WeiboFav
                 }
                 catch (TimeoutException)
                 {
+                    Code = "";
                     File.Delete("verify.png");
                     ((ITakesScreenshot) webDriver).GetScreenshot().SaveAsFile("verify.png");
                     Console.WriteLine("Please check verify.png for verify code");
-                    Console.Write("Verify Code: ");
-                    var code = Console.ReadLine();
-                    webDriver.FindElement(By.CssSelector(".verify input")).SendKeys(code);
+                    var verifyImgStream = new MemoryStream(((ITakesScreenshot) webDriver).GetScreenshot().AsByteArray);
+                    VerifyRequested?.Invoke(this, new VerifyEventArgs {VerifyImg = verifyImgStream});
+                    while (string.IsNullOrWhiteSpace(Code)) await Task.Delay(1000);
+                    webDriver.FindElement(By.CssSelector(".verify input")).SendKeys(Code);
                     submitBtn.Click();
                 }
         }
@@ -177,6 +181,11 @@ namespace WeiboFav
         public class WeiboEventArgs : EventArgs
         {
             public WeiboInfo WeiboInfo { get; set; }
+        }
+
+        public class VerifyEventArgs : EventArgs
+        {
+            public Stream VerifyImg { get; set; }
         }
     }
 }

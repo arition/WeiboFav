@@ -14,9 +14,16 @@ namespace WeiboFav
         public TelegramBot()
         {
             BotClient = new TelegramBotClient(Program.Config["Telegram:Token"]);
+            BotClient.OnMessage += (sender, e) =>
+            {
+                if (e.Message.Chat.Id.ToString() == Program.Config["Telegram:AdminChatId"])
+                    OnMessage?.Invoke(this, e.Message.Text);
+            };
         }
 
         private TelegramBotClient BotClient { get; }
+
+        public event EventHandler<string> OnMessage;
 
         public async Task SendWeibo(WeiboInfo weiboInfo)
         {
@@ -92,6 +99,11 @@ namespace WeiboFav
                     }
                 }
             }
+        }
+
+        public async Task SendVerifyCode(Stream img)
+        {
+            await BotClient.SendPhotoAsync(Program.Config["Telegram:AdminChatId"], new InputMedia(img, "verify.png"));
         }
     }
 }

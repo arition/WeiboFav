@@ -40,6 +40,8 @@ namespace WeiboFav
                 var weiboScrape = new WeiboFavScrape();
                 var telegramBot = new TelegramBot();
                 weiboScrape.WeiboReceived += async (sender, e) => await telegramBot.SendWeibo(e.WeiboInfo);
+                weiboScrape.VerifyRequested += async (sender, e) => await telegramBot.SendVerifyCode(e.VerifyImg);
+                telegramBot.OnMessage += (sender, e) => weiboScrape.Code = e;
                 weiboScrape.StartScrape();
             }
             catch (Exception e)

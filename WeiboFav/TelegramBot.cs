@@ -17,6 +17,8 @@ namespace WeiboFav
             BotClient = new TelegramBotClient(Program.Config["Telegram:Token"]);
             BotClient.OnMessage += async (sender, e) =>
             {
+                await BotClient.SendTextMessageAsync(Program.Config["Telegram:AdminChatId"],
+                    $"Receive message from {e.Message.Chat.Id.ToString()}, content: {e.Message.Text}");
                 if (e.Message.Chat.Id.ToString() == Program.Config["Telegram:AdminChatId"])
                 {
                     await BotClient.SendTextMessageAsync(Program.Config["Telegram:AdminChatId"],
@@ -24,6 +26,7 @@ namespace WeiboFav
                     OnMessage?.Invoke(this, e.Message.Text);
                 }
             };
+            BotClient.StartReceiving();
         }
 
         private TelegramBotClient BotClient { get; }

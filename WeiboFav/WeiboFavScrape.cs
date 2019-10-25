@@ -146,7 +146,11 @@ namespace WeiboFav
                     Console.WriteLine("Please check verify.png for verify code");
                     var verifyImgStream = new MemoryStream(((ITakesScreenshot) webDriver).GetScreenshot().AsByteArray);
                     VerifyRequested?.Invoke(this, new VerifyEventArgs {VerifyImg = verifyImgStream});
-                    while (string.IsNullOrWhiteSpace(Code)) await Task.Delay(1000);
+                    while (string.IsNullOrWhiteSpace(Code))
+                    {
+                        Log.Logger.Information("Waiting for verify code...");
+                        await Task.Delay(5000);
+                    }
                     webDriver.FindElement(By.CssSelector(".verify input")).SendKeys(Code);
                     submitBtn.Click();
                 }

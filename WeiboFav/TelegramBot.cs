@@ -15,10 +15,14 @@ namespace WeiboFav
         public TelegramBot()
         {
             BotClient = new TelegramBotClient(Program.Config["Telegram:Token"]);
-            BotClient.OnMessage += (sender, e) =>
+            BotClient.OnMessage += async (sender, e) =>
             {
                 if (e.Message.Chat.Id.ToString() == Program.Config["Telegram:AdminChatId"])
+                {
+                    await BotClient.SendTextMessageAsync(Program.Config["Telegram:AdminChatId"],
+                        "Verify code received.");
                     OnMessage?.Invoke(this, e.Message.Text);
+                }
             };
         }
 

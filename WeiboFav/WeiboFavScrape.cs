@@ -144,8 +144,12 @@ namespace WeiboFav
                     File.Delete("verify.png");
                     ((ITakesScreenshot) webDriver).GetScreenshot().SaveAsFile("verify.png");
                     Console.WriteLine("Please check verify.png for verify code");
-                    var verifyImgStream = new MemoryStream(((ITakesScreenshot) webDriver).GetScreenshot().AsByteArray);
-                    VerifyRequested?.Invoke(this, new VerifyEventArgs {VerifyImg = verifyImgStream});
+                    using (var verifyImgStream =
+                        new MemoryStream(((ITakesScreenshot) webDriver).GetScreenshot().AsByteArray))
+                    {
+                        VerifyRequested?.Invoke(this, new VerifyEventArgs {VerifyImg = verifyImgStream});
+                    }
+
                     while (string.IsNullOrWhiteSpace(Code))
                     {
                         Log.Logger.Information("Waiting for verify code...");

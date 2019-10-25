@@ -61,5 +61,23 @@ namespace WeiboFav.Utils
                 return ms;
             }
         }
+
+        public static Stream ResizeImage(Stream stream)
+        {
+            using (stream)
+            {
+                var ms = new MemoryStream();
+                using (var image = Image.Load(stream))
+                {
+                    // ReSharper disable AccessToDisposedClosure
+                    image.Mutate(x => x.Crop(new Rectangle(image.Width / 2, image.Height / 2,
+                        image.Width / 2, image.Height / 2)));
+                    image.SaveAsJpeg(ms, new JpegEncoder { Quality = 75, Subsample = JpegSubsample.Ratio420 });
+                }
+
+                ms.Seek(0, SeekOrigin.Begin);
+                return ms;
+            }
+        }
     }
 }

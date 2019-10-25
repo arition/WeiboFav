@@ -110,8 +110,12 @@ namespace WeiboFav
 
         public async Task SendVerifyCode(Stream img)
         {
-            await BotClient.SendChatActionAsync(Program.Config["Telegram:AdminChatId"], ChatAction.UploadPhoto);
-            await BotClient.SendPhotoAsync(Program.Config["Telegram:AdminChatId"], new InputMedia(img, "verify.png"));
+            using (var croppedImg = Utils.Utils.ResizeImage(img))
+            {
+                await BotClient.SendChatActionAsync(Program.Config["Telegram:AdminChatId"], ChatAction.UploadPhoto);
+                await BotClient.SendPhotoAsync(Program.Config["Telegram:AdminChatId"],
+                    new InputMedia(croppedImg, "verify.png"));
+            }
         }
     }
 }

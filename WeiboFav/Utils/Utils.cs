@@ -50,7 +50,7 @@ namespace WeiboFav.Utils
                     image.Mutate(x => x.Resize(
                         new ResizeOptions
                         {
-                            Size = new Size(2000, 2000),
+                            Size = new Size(1000, 1000),
                             Mode = ResizeMode.Min,
                             Sampler = new CatmullRomResampler()
                         }));

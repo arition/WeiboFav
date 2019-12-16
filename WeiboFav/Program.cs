@@ -47,6 +47,7 @@ namespace WeiboFav
             catch (Exception e)
             {
                 Log.Logger.Fatal(e, "Unknown error");
+                Environment.Exit(-1);
             }
 
 

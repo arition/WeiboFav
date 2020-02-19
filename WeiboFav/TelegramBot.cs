@@ -67,34 +67,33 @@ namespace WeiboFav
                     await BotClient.SendChatActionAsync(Program.Config["Telegram:ChatId"], ChatAction.UploadPhoto);
 
                     if (files.Count > 1)
-                    {
                         /*var totalSize = 0L;
-                        (totalSize+=t.Length) < sizeLimit && */
-                        var photoInput = files.Select(t => new InputMediaPhoto(new InputMedia(t.Stream, t.Name)))
-                            .ToList();
-                        photoInput[0].Caption =
-                            photoInput.Count == files.Count ? weiboInfo.Url : $"More: {weiboInfo.Url}";
-                        await BotClient.SendMediaGroupAsync(photoInput,
-                            new ChatId(long.Parse(Program.Config["Telegram:ChatId"])));
-                    }
+                            (totalSize+=t.Length) < sizeLimit && */
+                        while (files.Count > 0)
+                        {
+                            var photo = files.Take(Math.Min(9, files.Count)).ToList();
+                            photo.ForEach(t => files.Remove(t));
+                            var photoInput = photo
+                                .Select(t => new InputMediaPhoto(new InputMedia(t.Stream, t.Name))).ToList();
+                            photoInput[0].Caption = weiboInfo.Url;
+                            await BotClient.SendMediaGroupAsync(photoInput,
+                                new ChatId(long.Parse(Program.Config["Telegram:ChatId"])));
+                        }
                     else if (files.Count == 1)
-                    {
                         await BotClient.SendPhotoAsync(new ChatId(long.Parse(Program.Config["Telegram:ChatId"])),
                             new InputMedia(files[0].Stream, files[0].Name), weiboInfo.Url);
-                    }
                     else
-                    {
                         await BotClient.SendTextMessageAsync(
                             new ChatId(long.Parse(Program.Config["Telegram:ChatId"])),
                             weiboInfo.Url, disableWebPagePreview: true);
-                    }
 
                     break;
                 }
                 catch (Exception e)
                 {
                     retryTime++;
-                    Log.Logger.Fatal(e, $"Failed to send message, weiboId {weiboInfo.Id}, retry ({retryTime}/5)");
+                    Log.Logger.Fatal(e,
+                        $"Failed to send message, weiboId {weiboInfo.Id}, retry ({retryTime}/5)");
                     await Task.Delay(TimeSpan.FromSeconds(10));
                 }
                 finally
@@ -112,7 +111,8 @@ namespace WeiboFav
         {
             using (var croppedImg = Utils.Utils.ResizeImage(img))
             {
-                await BotClient.SendChatActionAsync(Program.Config["Telegram:AdminChatId"], ChatAction.UploadPhoto);
+                await BotClient.SendChatActionAsync(Program.Config["Telegram:AdminChatId"],
+                    ChatAction.UploadPhoto);
                 await BotClient.SendPhotoAsync(Program.Config["Telegram:AdminChatId"],
                     new InputMedia(croppedImg, "verify.png"));
             }

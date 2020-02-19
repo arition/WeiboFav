@@ -20,6 +20,7 @@ namespace WeiboFav
     {
         private HttpClient HttpClient { get; } = new HttpClient();
         private Regex ImgUrlRegex { get; } = new Regex(@"(?<=\d%2F).+?\.(jpg|gif|png|webp)", RegexOptions.Compiled);
+        private Regex ImgUrlRegexNew { get; } = new Regex(@"(?<=pic_ids=)[,\d\w]+", RegexOptions.Compiled);
         private Regex FileNameRegex { get; } = new Regex(@"[^\/]+(?=\/$|$)", RegexOptions.Compiled);
         public string Code { private get; set; }
 
@@ -72,15 +73,14 @@ namespace WeiboFav
                             RawHtml = t.GetAttribute("innerHTML"),
                             Url = t.FindElementX(By.CssSelector(".WB_func li:nth-child(2) a"))?.GetAttribute("href") ??
                                   "",
-                            ImgUrls = (await Task.WhenAll(
-                                ImgUrlRegex.Matches(
-                                        t.FindElementX(By.CssSelector(".WB_media_a[action-data]"))
-                                            ?.GetAttribute("action-data") ?? "").Select(d => d.Value).Distinct()
-                                    .Select(async d => new Img
-                                    {
-                                        ImgUrl = $"http://wx1.sinaimg.cn/large/{d}",
-                                        ImgPath = await DownloadImg($"http://wx1.sinaimg.cn/large/{d}")
-                                    }))).ToList()
+                            ImgUrls = (await Task.WhenAll(PulloutImgList(
+                                    t.FindElementX(By.CssSelector(".WB_media_a[action-data]"))
+                                        ?.GetAttribute("action-data") ?? "")
+                                .Select(async d => new Img
+                                {
+                                    ImgUrl = $"http://wx1.sinaimg.cn/large/{d}",
+                                    ImgPath = await DownloadImg($"http://wx1.sinaimg.cn/large/{d}")
+                                }))).ToList()
                         }))).AsEnumerable();
 
                         IList<WeiboInfo> weiboInfoList;
@@ -112,6 +112,13 @@ namespace WeiboFav
                 //close Chrome
                 webDriver.Close();
             }
+        }
+
+        private IEnumerable<string> PulloutImgList(string html)
+        {
+            var listOnlyNinePic = ImgUrlRegex.Matches(html).Select(d => d.Value);
+            var allPic = ImgUrlRegexNew.Match(html).Value.Split(',').Select(t => $"{t}.jpg");
+            return listOnlyNinePic.Concat(allPic).Distinct();
         }
 
         private async Task Login(IWebDriver webDriver)
@@ -155,6 +162,7 @@ namespace WeiboFav
                         Log.Logger.Information("Waiting for verify code...");
                         await Task.Delay(5000);
                     }
+
                     webDriver.FindElement(By.CssSelector(".verify input")).SendKeys(Code);
                     submitBtn.Click();
                 }

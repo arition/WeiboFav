@@ -117,7 +117,7 @@ namespace WeiboFav
         private IEnumerable<string> PulloutImgList(string html)
         {
             var listOnlyNinePic = ImgUrlRegex.Matches(html).Select(d => d.Value);
-            var allPic = ImgUrlRegexNew.Match(html).Value.Split(',').Select(t => $"{t}.jpg");
+            var allPic = ImgUrlRegexNew.Match(html).Value.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(t => $"{t}.jpg");
             return listOnlyNinePic.Concat(allPic).Distinct();
         }
 

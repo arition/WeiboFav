@@ -34,7 +34,11 @@ namespace WeiboFav
             if (!userDirPath.Exists) userDirPath.Create();
 
             var options = new ChromeOptions();
+#if DEBUG
+            options.AddArguments($"--user-data-dir={userDirPath.FullName}");
+#else
             options.AddArguments("--headless", "--disable-gpu", $"--user-data-dir={userDirPath.FullName}");
+#endif
 
             using (var webDriver = new ChromeDriver(browserDriverPath, options))
             {
@@ -67,6 +71,15 @@ namespace WeiboFav
                         await waitJump.UntilAsync(webDriver,
                             ExpectedConditions.ElementIsVisible(By.CssSelector(".WB_feed_like")));
                         var weibos = webDriver.FindElements(By.CssSelector(".WB_feed_like"));
+                        foreach (var element in weibos)
+                        {
+                            var ninePicTrigger = element.FindElements(By.CssSelector(".WB_pic.li_9"));
+                            if (ninePicTrigger.Count == 0) continue;
+                            ninePicTrigger[0].Click();
+                            await waitJump.UntilAsync(element,
+                                Conditions.ElementIsVisible(By.CssSelector(".WB_expand_media_box")));
+                        }
+
                         var weiboInfos = (await Task.WhenAll(weibos.Select(async t => new WeiboInfo
                         {
                             Id = t.GetAttribute("mid"),
@@ -103,6 +116,12 @@ namespace WeiboFav
                     }
                     catch (Exception e)
                     {
+                        if (e is WebDriverException)
+                        {
+                            Log.Fatal(e, "Browser dead");
+                            return;
+                        }
+
                         Log.Fatal(e, "Access Weibo failed");
                     }
 
@@ -117,7 +136,8 @@ namespace WeiboFav
         private IEnumerable<string> PulloutImgList(string html)
         {
             var listOnlyNinePic = ImgUrlRegex.Matches(html).Select(d => d.Value);
-            var allPic = ImgUrlRegexNew.Match(html).Value.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(t => $"{t}.jpg");
+            var allPic = ImgUrlRegexNew.Match(html).Value.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(t => $"{t}.jpg");
             return listOnlyNinePic.Concat(allPic).Distinct();
         }
 

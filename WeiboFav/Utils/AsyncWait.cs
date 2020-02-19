@@ -47,5 +47,22 @@ namespace WeiboFav.Utils
                 }
             });
         }
+
+        public async Task UntilAsync<TResult>(IWebElement element, Func<IWebElement, TResult> condition)
+        {
+            await UntilAsync(() =>
+            {
+                try
+                {
+                    var result = condition(element);
+                    if (result is bool) return (bool)(object)result;
+                    return result != null;
+                }
+                catch
+                {
+                    return false;
+                }
+            });
+        }
     }
 }

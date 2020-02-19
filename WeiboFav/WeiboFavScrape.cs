@@ -29,7 +29,7 @@ namespace WeiboFav
 
         public async void StartScrape()
         {
-            //var browserDriverPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            
             var userDirPath = new DirectoryInfo(Program.Config["Chrome:UserDirPath"]);
             if (!userDirPath.Exists) userDirPath.Create();
 
@@ -40,7 +40,7 @@ namespace WeiboFav
             options.AddArguments("--headless", "--disable-gpu", $"--user-data-dir={userDirPath.FullName}");
 #endif
 
-            using (var webDriver = new ChromeDriver(options))
+            using (var webDriver = new ChromeDriver(Program.Config["Chrome:DriverPath"], options))
             {
                 webDriver.Manage().Window.Size = new Size(1920, 1080);
                 Log.Logger.Information("WebDriver started");

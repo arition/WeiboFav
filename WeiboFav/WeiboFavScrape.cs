@@ -118,8 +118,8 @@ namespace WeiboFav
                     {
                         if (e is WebDriverException)
                         {
-                            Log.Fatal(e, "Browser dead");
-                            return;
+                            //Log.Fatal(e, "Browser dead");
+                            throw;
                         }
 
                         Log.Fatal(e, "Access Weibo failed");
@@ -127,9 +127,6 @@ namespace WeiboFav
 
                     await Task.Delay(TimeSpan.FromMinutes(1));
                 }
-
-                //close Chrome
-                webDriver.Close();
             }
         }
 

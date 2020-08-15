@@ -4,7 +4,6 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using OpenQA.Selenium;
@@ -29,16 +28,16 @@ namespace WeiboFav
 
         public async void StartScrape()
         {
-            
             var userDirPath = new DirectoryInfo(Program.Config["Chrome:UserDirPath"]);
             if (!userDirPath.Exists) userDirPath.Create();
 
             var options = new ChromeOptions();
-#if DEBUG
-            options.AddArguments($"--user-data-dir={userDirPath.FullName}");
-#else
-            options.AddArguments("--headless", "--disable-gpu", $"--user-data-dir={userDirPath.FullName}");
-#endif
+
+            if (!string.IsNullOrWhiteSpace(Program.Config["Chrome:Headless"]) &&
+                (Program.Config["Chrome:Headless"] == "True" || Program.Config["Chrome:Headless"] == "true"))
+                options.AddArguments("--headless", "--disable-gpu", $"--user-data-dir={userDirPath.FullName}");
+            else
+                options.AddArguments($"--user-data-dir={userDirPath.FullName}");
 
             using (var webDriver = new ChromeDriver(Program.Config["Chrome:DriverPath"], options))
             {
@@ -117,10 +116,8 @@ namespace WeiboFav
                     catch (Exception e)
                     {
                         if (e is WebDriverException)
-                        {
                             //Log.Fatal(e, "Browser dead");
                             throw;
-                        }
 
                         Log.Fatal(e, "Access Weibo failed");
                     }
@@ -164,24 +161,54 @@ namespace WeiboFav
                 }
                 catch (TimeoutException)
                 {
-                    Code = "";
-                    File.Delete("verify.png");
-                    ((ITakesScreenshot) webDriver).GetScreenshot().SaveAsFile("verify.png");
-                    Console.WriteLine("Please check verify.png for verify code");
-                    using (var verifyImgStream =
-                        new MemoryStream(((ITakesScreenshot) webDriver).GetScreenshot().AsByteArray))
+                    if (webDriver.FindElements(By.CssSelector("#dmCheck")).Count == 0)
                     {
-                        VerifyRequested?.Invoke(this, new VerifyEventArgs {VerifyImg = verifyImgStream});
-                    }
+                        Code = "";
+                        File.Delete("verify.png");
+                        ((ITakesScreenshot) webDriver).GetScreenshot().SaveAsFile("verify.png");
+                        Console.WriteLine("Please check verify.png for verify code");
+                        using (var verifyImgStream =
+                            new MemoryStream(((ITakesScreenshot) webDriver).GetScreenshot().AsByteArray))
+                        {
+                            VerifyRequested?.Invoke(this, new VerifyEventArgs {VerifyImg = verifyImgStream});
+                        }
 
-                    while (string.IsNullOrWhiteSpace(Code))
+                        while (string.IsNullOrWhiteSpace(Code))
+                        {
+                            Log.Logger.Information("Waiting for verify code...");
+                            await Task.Delay(5000);
+                        }
+
+                        try
+                        {
+                            webDriver.FindElement(By.CssSelector(".verify input")).SendKeys(Code);
+                            Code = "";
+                            submitBtn.Click();
+                        }
+                        catch
+                        {
+                            Log.Logger.Warning("Cannot submit verify code");
+                        }
+                    }
+                    else
                     {
-                        Log.Logger.Information("Waiting for verify code...");
-                        await Task.Delay(5000);
-                    }
+                        webDriver.FindElement(By.CssSelector("#qrCodeCheck")).Click();
+                        await Task.Delay(10000);
+                        ((ITakesScreenshot) webDriver).GetScreenshot().SaveAsFile("qrcode.png");
+                        using (var verifyImgStream =
+                            new MemoryStream(((ITakesScreenshot) webDriver).GetScreenshot().AsByteArray))
+                        {
+                            VerifyRequested?.Invoke(this, new VerifyEventArgs {VerifyImg = verifyImgStream});
+                        }
 
-                    webDriver.FindElement(By.CssSelector(".verify input")).SendKeys(Code);
-                    submitBtn.Click();
+                        while (string.IsNullOrWhiteSpace(Code))
+                        {
+                            Log.Logger.Information("Waiting for qr code confirm...");
+                            await Task.Delay(5000);
+                        }
+
+                        Code = "";
+                    }
                 }
         }
 

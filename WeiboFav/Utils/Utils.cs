@@ -70,8 +70,8 @@ namespace WeiboFav.Utils
                 using (var image = Image.Load(stream))
                 {
                     // ReSharper disable AccessToDisposedClosure
-                    image.Mutate(x => x.Crop(new Rectangle(image.Width / 2, 0,
-                        image.Width / 2, image.Height / 2)));
+                    image.Mutate(x => x.Crop(new Rectangle(0, 0,
+                        image.Width, image.Height / 2)));
                     image.SaveAsJpeg(ms, new JpegEncoder { Quality = 75, Subsample = JpegSubsample.Ratio420 });
                 }
 

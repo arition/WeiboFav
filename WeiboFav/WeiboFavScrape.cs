@@ -44,7 +44,7 @@ namespace WeiboFav
                 webDriver.Manage().Window.Size = new Size(1920, 1080);
                 Log.Logger.Information("WebDriver started");
 
-                var url = "http://weibo.com";
+                var url = "https://weibo.com";
                 webDriver.Navigate().GoToUrl(url);
 
                 var waitJump = new AsyncWait(TimeSpan.FromSeconds(15));
@@ -63,7 +63,7 @@ namespace WeiboFav
                 {
                     try
                     {
-                        url = "http://weibo.com/fav";
+                        url = "https://weibo.com/fav";
                         webDriver.Navigate().GoToUrl(url);
                         Log.Logger.Information("Checking fav Weibo...");
 
@@ -90,8 +90,8 @@ namespace WeiboFav
                                         ?.GetAttribute("action-data") ?? "")
                                 .Select(async d => new Img
                                 {
-                                    ImgUrl = $"http://wx1.sinaimg.cn/large/{d}",
-                                    ImgPath = await DownloadImg($"http://wx1.sinaimg.cn/large/{d}")
+                                    ImgUrl = $"https://wx1.sinaimg.cn/large/{d}",
+                                    ImgPath = await DownloadImg($"https://wx1.sinaimg.cn/large/{d}")
                                 }))).ToList()
                         }))).AsEnumerable();
 

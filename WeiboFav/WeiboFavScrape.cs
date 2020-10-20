@@ -49,7 +49,7 @@ namespace WeiboFav
                     Height = 1080
                 });
 
-                var url = "https://weibo.com";
+                var url = "https://weibo.com/fav";
                 await page.GoToAsync(url);
 
                 try

@@ -49,7 +49,7 @@ namespace WeiboFav
                     Height = 1080
                 });
 
-                var url = "https://weibo.com/fav";
+                var url = "https://weibo.com";
                 await page.GoToAsync(url);
 
                 try
@@ -70,7 +70,7 @@ namespace WeiboFav
                 {
                     try
                     {
-                        url = "https://weibo.com/fav";
+                        url = "https://weibo.com/fav?leftnav=1";
                         await page.GoToAsync(url);
                         Log.Logger.Information("Checking fav Weibo...");
 

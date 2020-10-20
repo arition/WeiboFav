@@ -1,14 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using OpenQA.Selenium;
-using OpenQA.Selenium.Chrome;
-using SeleniumExtras.WaitHelpers;
+using PuppeteerSharp;
+using PuppeteerSharp.Input;
 using Serilog;
 using WeiboFav.Model;
 using WeiboFav.Utils;
@@ -31,32 +29,41 @@ namespace WeiboFav
             var userDirPath = new DirectoryInfo(Program.Config["Chrome:UserDirPath"]);
             if (!userDirPath.Exists) userDirPath.Create();
 
-            var options = new ChromeOptions();
+            await new BrowserFetcher().DownloadAsync(BrowserFetcher.DefaultRevision);
+            var options = new LaunchOptions();
 
             if (!string.IsNullOrWhiteSpace(Program.Config["Chrome:Headless"]) &&
                 (Program.Config["Chrome:Headless"] == "True" || Program.Config["Chrome:Headless"] == "true"))
-                options.AddArguments("--headless", "--disable-gpu", $"--user-data-dir={userDirPath.FullName}");
+                options.Headless = true;
             else
-                options.AddArguments($"--user-data-dir={userDirPath.FullName}");
+                options.Headless = false;
+            options.UserDataDir = userDirPath.FullName;
 
-            using (var webDriver = new ChromeDriver(Program.Config["Chrome:DriverPath"], options))
+            using (var browser = await Puppeteer.LaunchAsync(options))
             {
-                webDriver.Manage().Window.Size = new Size(1920, 1080);
-                Log.Logger.Information("WebDriver started");
+                Log.Logger.Information("Browser started");
+                var page = await browser.NewPageAsync();
+                await page.SetViewportAsync(new ViewPortOptions
+                {
+                    Width = 1920,
+                    Height = 1080
+                });
 
                 var url = "https://weibo.com";
-                webDriver.Navigate().GoToUrl(url);
+                await page.GoToAsync(url);
 
-                var waitJump = new AsyncWait(TimeSpan.FromSeconds(15));
                 try
                 {
-                    await waitJump.UntilAsync(webDriver, ExpectedConditions.UrlMatches(@"weibo.com/.+/home"));
+                    await page.WaitForSelectorAsync(".WB_left_nav", new WaitForSelectorOptions
+                    {
+                        Visible = true, Timeout = 10000
+                    });
                     Log.Logger.Information("User Login Success");
                 }
                 catch (TimeoutException)
                 {
                     Log.Logger.Information("Try Login...");
-                    await Login(webDriver);
+                    await Login(page);
                 }
 
                 while (true)
@@ -64,49 +71,59 @@ namespace WeiboFav
                     try
                     {
                         url = "https://weibo.com/fav";
-                        webDriver.Navigate().GoToUrl(url);
+                        await page.GoToAsync(url);
                         Log.Logger.Information("Checking fav Weibo...");
 
-                        await waitJump.UntilAsync(webDriver,
-                            ExpectedConditions.ElementIsVisible(By.CssSelector(".WB_feed_like")));
-                        var weibos = webDriver.FindElements(By.CssSelector(".WB_feed_like"));
+                        await page.WaitForSelectorAsync(".WB_feed_like", new WaitForSelectorOptions {Visible = true});
+                        var weibos = await page.QuerySelectorAllAsync(".WB_feed_like");
+                        var weiboInfoList = new List<WeiboInfo>();
+
                         foreach (var element in weibos)
                         {
-                            var ninePicTrigger = element.FindElements(By.CssSelector(".WB_pic.li_9"));
-                            if (ninePicTrigger.Count == 0) continue;
-                            ninePicTrigger[0].Click();
-                            await waitJump.UntilAsync(element,
-                                Conditions.ElementIsVisible(By.CssSelector(".WB_expand_media_box")));
+                            var mid = await element.GetAttributeAsync("mid", page);
+                            var ninePicTrigger = await element.QuerySelectorAllAsync(".WB_pic.li_9");
+                            if (ninePicTrigger.Any())
+                            {
+                                await ninePicTrigger[0].ClickAsync();
+                                await page.WaitForSelectorAsync($"[mid='{mid}'] .WB_expand_media_box",
+                                    new WaitForSelectorOptions {Visible = true});
+                            }
+
+                            var html = await page.EvaluateFunctionAsync<string>("(el) => el.innerHTML", element);
+                            var urlElement =
+                                await element.QuerySelectorAsync(".WB_func li:nth-child(2) a");
+                            var imgBoxesElement =
+                                await element.QuerySelectorAsync(".WB_media_a[action-data]");
+
+                            weiboInfoList.Add(new WeiboInfo
+                            {
+                                Id = mid,
+                                RawHtml = html,
+                                Url = urlElement != null
+                                    ? "https://weibo.com" + await urlElement.GetAttributeAsync("href", page)
+                                    : "",
+                                ImgUrls = (await Task.WhenAll(
+                                    PulloutImgList(imgBoxesElement != null
+                                            ? await imgBoxesElement.GetAttributeAsync("action-data", page)
+                                            : "")
+                                        .Select(async d => new Img
+                                        {
+                                            ImgUrl = $"https://wx1.sinaimg.cn/large/{d}",
+                                            ImgPath = await DownloadImg($"https://wx1.sinaimg.cn/large/{d}")
+                                        }))).ToList()
+                            });
                         }
-
-                        var weiboInfos = (await Task.WhenAll(weibos.Select(async t => new WeiboInfo
-                        {
-                            Id = t.GetAttribute("mid"),
-                            RawHtml = t.GetAttribute("innerHTML"),
-                            Url = t.FindElementX(By.CssSelector(".WB_func li:nth-child(2) a"))?.GetAttribute("href") ??
-                                  "",
-                            ImgUrls = (await Task.WhenAll(PulloutImgList(
-                                    t.FindElementX(By.CssSelector(".WB_media_a[action-data]"))
-                                        ?.GetAttribute("action-data") ?? "")
-                                .Select(async d => new Img
-                                {
-                                    ImgUrl = $"https://wx1.sinaimg.cn/large/{d}",
-                                    ImgPath = await DownloadImg($"https://wx1.sinaimg.cn/large/{d}")
-                                }))).ToList()
-                        }))).AsEnumerable();
-
-                        IList<WeiboInfo> weiboInfoList;
 
                         using (var db = new Database())
                         {
                             // ReSharper disable once AccessToDisposedClosure
-                            weiboInfoList = weiboInfos.Where(t => db.WeiboInfo.All(d => t.Id != d.Id)).ToList();
+                            weiboInfoList = weiboInfoList.Where(t => db.WeiboInfo.All(d => t.Id != d.Id)).ToList();
                             await db.WeiboInfo.AddRangeAsync(weiboInfoList);
                             await db.SaveChangesAsync();
                         }
 
                         File.Delete("screenshot.png");
-                        ((ITakesScreenshot) webDriver).GetScreenshot().SaveAsFile("screenshot.png");
+                        await page.ScreenshotAsync("screenshot.png");
                         Log.Logger.Information($"Find {weiboInfoList.Count} new weibos");
                         if (weiboInfoList.Count > 0)
                             Log.Logger.Information("Passing weibos to telegram bot...");
@@ -115,7 +132,7 @@ namespace WeiboFav
                     }
                     catch (Exception e)
                     {
-                        if (e is WebDriverException)
+                        if (e is PuppeteerException)
                             //Log.Fatal(e, "Browser dead");
                             throw;
 
@@ -135,40 +152,44 @@ namespace WeiboFav
             return listOnlyNinePic.Concat(allPic).Distinct();
         }
 
-        private async Task Login(IWebDriver webDriver)
+        private async Task Login(Page page)
         {
-            var wait = new AsyncWait(TimeSpan.FromSeconds(30));
-            await wait.UntilAsync(webDriver, ExpectedConditions.ElementIsVisible(By.Name("username")));
+            await page.WaitForSelectorAsync("[name=username]", new WaitForSelectorOptions {Visible = true});
 
-            var username = webDriver.FindElement(By.Name("username"));
-            var password = webDriver.FindElement(By.Name("password"));
-            var submitBtn =
-                webDriver.FindElement(By.CssSelector("div[node-type='normal_form'] a[node-type='submitBtn']"));
+            var username = await page.QuerySelectorAsync("[name='username']");
+            var password = await page.QuerySelectorAsync("[name='password']");
+            var submitBtn = await page.QuerySelectorAsync("div[node-type='normal_form'] a[node-type='submitBtn']");
 
-            username.Clear();
-            username.SendKeys(Program.Config["Weibo:Username"]);
+            await username.ClickAsync();
+            await username.FocusAsync();
+            // click three times to select all
+            await username.ClickAsync(new ClickOptions {ClickCount = 3});
+            await username.PressAsync("Backspace");
+            await username.TypeAsync(Program.Config["Weibo:Username"]);
 
-            password.Clear();
-            password.SendKeys(Program.Config["Weibo:Password"]);
-            submitBtn.Click();
+            await password.ClickAsync();
+            await password.FocusAsync();
+            // click three times to select all
+            await password.ClickAsync(new ClickOptions {ClickCount = 3});
+            await password.PressAsync("Backspace");
+            await password.TypeAsync(Program.Config["Weibo:Password"]);
+            await submitBtn.ClickAsync();
 
             while (true)
                 try
                 {
-                    await wait.UntilAsync(webDriver,
-                        ExpectedConditions.ElementIsVisible(By.CssSelector(".WB_left_nav")));
+                    await page.WaitForSelectorAsync(".WB_left_nav", new WaitForSelectorOptions {Visible = true});
                     break;
                 }
-                catch (TimeoutException)
+                catch (WaitTaskTimeoutException)
                 {
-                    if (webDriver.FindElements(By.CssSelector("#dmCheck")).Count == 0)
+                    if (await page.QuerySelectorAsync("#dmCheck") == null)
                     {
                         Code = "";
                         File.Delete("verify.png");
-                        ((ITakesScreenshot) webDriver).GetScreenshot().SaveAsFile("verify.png");
+                        await page.ScreenshotAsync("verify.png");
                         Console.WriteLine("Please check verify.png for verify code");
-                        using (var verifyImgStream =
-                            new MemoryStream(((ITakesScreenshot) webDriver).GetScreenshot().AsByteArray))
+                        using (var verifyImgStream = await page.ScreenshotStreamAsync())
                         {
                             VerifyRequested?.Invoke(this, new VerifyEventArgs {VerifyImg = verifyImgStream});
                         }
@@ -181,9 +202,9 @@ namespace WeiboFav
 
                         try
                         {
-                            webDriver.FindElement(By.CssSelector(".verify input")).SendKeys(Code);
+                            await (await page.QuerySelectorAsync(".verify input")).TypeAsync(Code);
                             Code = "";
-                            submitBtn.Click();
+                            await submitBtn.ClickAsync();
                         }
                         catch
                         {
@@ -192,22 +213,18 @@ namespace WeiboFav
                     }
                     else
                     {
-                        webDriver.FindElement(By.CssSelector("#qrCodeCheck")).Click();
+                        var qrCodeCheckBtn = await page.QuerySelectorAsync("#qrCodeCheck");
+                        if (qrCodeCheckBtn != null)
+                            await qrCodeCheckBtn.ClickAsync();
                         await Task.Delay(10000);
-                        ((ITakesScreenshot) webDriver).GetScreenshot().SaveAsFile("qrcode.png");
-                        using (var verifyImgStream =
-                            new MemoryStream(((ITakesScreenshot) webDriver).GetScreenshot().AsByteArray))
+                        File.Delete("qrcode.png");
+                        await page.ScreenshotAsync("qrcode.png");
+                        using (var verifyImgStream = await page.ScreenshotStreamAsync())
                         {
                             VerifyRequested?.Invoke(this, new VerifyEventArgs {VerifyImg = verifyImgStream});
                         }
 
-                        while (string.IsNullOrWhiteSpace(Code))
-                        {
-                            Log.Logger.Information("Waiting for qr code confirm...");
-                            await Task.Delay(5000);
-                        }
-
-                        Code = "";
+                        Log.Logger.Information("Waiting for qr code confirm...");
                     }
                 }
         }

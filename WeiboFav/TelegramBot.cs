@@ -46,16 +46,9 @@ namespace WeiboFav
                     .Select(t => new FileInfo(t.ImgPath))
                     .Select(t => new
                     {
-                        FileInfo = t,
+                        t.Name,
                         Stream = Utils.Utils.ResaveImage(t.OpenRead())
                     })
-                    .Select(t => new
-                    {
-                        t.FileInfo.Name,
-                        t.FileInfo.Length,
-                        Image = Utils.Utils.IdentifyX(t.Stream),
-                        t.Stream
-                    }).OrderBy(t => t.Length)
                     /*.TakeWhile(t => t.Length < sizeLimit &&
                                     t.Image.Height < heightLimit &&
                                     t.Image.Width < widthLimit)*/

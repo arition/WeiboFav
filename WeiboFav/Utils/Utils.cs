@@ -1,31 +1,18 @@
 ﻿using System.IO;
-using OpenQA.Selenium;
+using System.Threading.Tasks;
+using PuppeteerSharp;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.Processing.Processors.Transforms;
-using SixLabors.Primitives;
 
 namespace WeiboFav.Utils
 {
     public static class Utils
     {
-        /// <summary>
-        /// Return null when an element cannot be found
-        /// </summary>
-        /// <param name="webElement"></param>
-        /// <param name="by"></param>
-        /// <returns></returns>
-        public static IWebElement FindElementX(this IWebElement webElement, By by)
+        public static async Task<string> GetAttributeAsync(this ElementHandle element, string name, Page page)
         {
-            try
-            {
-                return webElement.FindElement(by);
-            }
-            catch (NoSuchElementException)
-            {
-                return null;
-            }
+            return await page.EvaluateFunctionAsync<string>($"(el) => el.getAttribute(\"{name}\")", element);
         }
 
         /// <summary>
@@ -52,7 +39,7 @@ namespace WeiboFav.Utils
                         {
                             Size = new Size(1000, 1000),
                             Mode = ResizeMode.Min,
-                            Sampler = new CatmullRomResampler()
+                            Sampler = new BicubicResampler()
                         }));
                     image.SaveAsJpeg(ms, new JpegEncoder {Quality = 75, Subsample = JpegSubsample.Ratio420});
                 }

@@ -56,11 +56,11 @@ namespace WeiboFav
                 {
                     await page.WaitForSelectorAsync(".WB_left_nav", new WaitForSelectorOptions
                     {
-                        Visible = true, Timeout = 10000
+                        Visible = true, Timeout = 15000
                     });
                     Log.Logger.Information("User Login Success");
                 }
-                catch (TimeoutException)
+                catch (WaitTaskTimeoutException)
                 {
                     Log.Logger.Information("Try Login...");
                     await Login(page);
